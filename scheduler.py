@@ -2,12 +2,15 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
+# Function to load employee data from an Excel file
 def load_employee_data(file_path):
     return pd.read_excel(file_path)
 
+# Function to save the duty schedule to an Excel file
 def save_duty_schedule(schedule_df, file_path):
     schedule_df.to_excel(file_path, index=False)
 
+# Function to generate a weighted schedule
 def generate_weighted_schedule(employee_data, last_assigned):
     available_employees = employee_data[employee_data["Availability"] == "yes"]
 
@@ -33,7 +36,7 @@ def generate_weighted_schedule(employee_data, last_assigned):
 
     return selected_employee
 
-
+# Function to get a unique pair of employees
 def get_unique_pair(employee_data, last_assigned, selected_indices):
     # Shuffle the available employees
     available_employees = employee_data[employee_data["Availability"] == "yes"].sample(frac=1)
@@ -54,6 +57,7 @@ def get_unique_pair(employee_data, last_assigned, selected_indices):
     else:
         return None, None
 
+# Function to generate the duty schedule
 def generate_duty_schedule(employee_data, start_date, num_weeks):
     duty_schedule = []
     available_employees = employee_data[employee_data["Availability"] == "yes"]
@@ -91,14 +95,12 @@ def generate_duty_schedule(employee_data, start_date, num_weeks):
 
     return pd.DataFrame(duty_schedule)
 
-
-
-
+# Main script execution
 if __name__ == "__main__":
     # Load employee data from Excel
     employee_data = load_employee_data("team_list.xlsx")
 
-    # Set up initial LastAssignment column with current date
+    # Set up initial LastAssignment column with the current date
     employee_data["LastAssignment"] = datetime.now()
 
     # Set the start date and number of weeks for the duty schedule
