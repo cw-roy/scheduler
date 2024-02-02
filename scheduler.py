@@ -3,12 +3,13 @@ import numpy as np
 from icecream import ic, install
 from datetime import datetime, timedelta
 
-#install icecream
+# Install icecream
 install()
 
-    # Redirect IceCream output to a file
-with open('icecream_output.txt', 'w') as f:
-        ic.configureOutput(prefix='', outputFunction=f.write)
+# Redirect IceCream output to a file
+ic_output_file = open('icecream_output.txt', 'w')
+ic.configureOutput(prefix='', outputFunction=lambda s: ic_output_file.write(s + '\n'))
+
 
 # Function to load employee data from an Excel file
 def load_employee_data(file_path):
@@ -87,7 +88,7 @@ def generate_duty_schedule(employee_data, start_date, num_weeks):
 
             for _, employee in selected_employees.iterrows():
                 selected_indices.add(employee.name)
-                employee_data.at[employee.name, "LastAssignment"] = week_end
+                employee_data.at[employee.name, "LastAssignment"] = employee["LastAssignment"] + timedelta(days=4)
 
             ic(selected_employees)  # Debugging line
             ic(selected_indices)  # Debugging line
@@ -122,5 +123,8 @@ if __name__ == "__main__":
 
     # Save the duty schedule to an Excel file
     save_duty_schedule(schedule_df, "on_point_schedule.xlsx")
+
+    # Close the icecream output file
+    ic_output_file.close()
 
     print("Duty schedule generated and saved to 'on_point_schedule.xlsx'")
