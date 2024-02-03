@@ -22,30 +22,31 @@ logging.info("Script execution started.")
 
 
 def backup_existing_assignments():
-    file_name = 'assignments.xlsx' # hard coded
-    directory_path = 'history/' # hard coded
+    file_name = 'assignments.xlsx'
+    history_directory = 'history'
 
-    if not os.path.exists(directory_path):
-        os.makedirs(directory_path)
-        logging.info(f"Created directory: {directory_path}")
+    if not os.path.exists(history_directory):
+        os.makedirs(history_directory)
+        logging.info(f"Created directory: {history_directory}")
 
-    if os.path.exists(file_name):
+    file_path = os.path.join('working', file_name)
+
+    if os.path.exists(file_path):
         timestamp_str = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
-        new_file_name = f'{directory_path}assignments_as_of_{timestamp_str}.xlsx' # hard coded
+        new_file_name = os.path.join(history_directory, f'assignments_as_of_{timestamp_str}.xlsx')
 
-        os.rename(file_name, new_file_name) # hard coded
-        logging.info("Assignment file renamed to {}".format(new_file_name)) # hard coded
+        os.rename(file_path, new_file_name)
+        logging.info("Assignment file backed up to {}".format(new_file_name))
+        print(f"Existing {file_name} backed up to {new_file_name}")
+    else:
+        logging.info("No existing assignments to back up.")
 
-        print(f"Existing {file_name} backed up to {new_file_name}") # hard coded
-
-# Log when the existing assignment file is backed up
-backup_existing_assignments()
-logging.info("Existing assignments backed up.")
 
 def read_employee_data(file_path):
     """Read employee data from the Excel spreadsheet."""
     try:
-        df = pd.read_excel(file_path)
+        # df = pd.read_excel(file_path)
+        df = pd.read_excel(os.path.join('working', file_path))
 
         # Clean column names by removing leading and trailing spaces
         df.columns = df.columns.str.strip()
@@ -166,13 +167,20 @@ def write_to_excel(schedule):
 
     df = pd.DataFrame(flat_schedule)
 
+    # Specify the path within the "working" directory
+    working_directory = 'working'
+    output_file_path = os.path.join(working_directory, 'assignments.xlsx')
+
     # Write to Excel file with the specified columns
-    df.to_excel('assignments.xlsx', index=False)
+    df.to_excel(output_file_path, index=False)
 
 def main():
     employee_data = read_employee_data("team_list.xlsx")
 
     if employee_data is not None:
+        
+        backup_existing_assignments()
+        
         rotation_schedule = generate_rotation_schedule(employee_data)
 
         # For production use, write the schedule to an Excel file
