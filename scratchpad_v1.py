@@ -6,7 +6,7 @@ import logging
 from collections import deque
 
 # Configure logging
-log_directory = 'logging'
+log_directory = os.path.join(os.path.dirname(__file__), 'logging')
 os.makedirs(log_directory, exist_ok=True)
 
 logging.basicConfig(level=logging.INFO,
@@ -22,8 +22,8 @@ logging.info("Script execution started.")
 
 
 def backup_existing_assignments():
-    file_name = 'assignments.xlsx'
-    directory_path = 'history/'
+    file_name = 'assignments.xlsx' # hard coded
+    directory_path = 'history/' # hard coded
 
     if not os.path.exists(directory_path):
         os.makedirs(directory_path)
@@ -31,12 +31,12 @@ def backup_existing_assignments():
 
     if os.path.exists(file_name):
         timestamp_str = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
-        new_file_name = f'{directory_path}assignments_as_of_{timestamp_str}.xlsx'
+        new_file_name = f'{directory_path}assignments_as_of_{timestamp_str}.xlsx' # hard coded
 
-        os.rename(file_name, new_file_name)
-        logging.info("Assignment file renamed to {}".format(new_file_name))
+        os.rename(file_name, new_file_name) # hard coded
+        logging.info("Assignment file renamed to {}".format(new_file_name)) # hard coded
 
-        print(f"Existing {file_name} backed up to {new_file_name}")
+        print(f"Existing {file_name} backed up to {new_file_name}") # hard coded
 
 # Log when the existing assignment file is backed up
 backup_existing_assignments()
