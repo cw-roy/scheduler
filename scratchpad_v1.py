@@ -13,14 +13,16 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s',
                     handlers=[
                         # logging.StreamHandler(),  # Comment out to stop logging to console
-                        logging.FileHandler(os.path.join(log_directory, 'scratchpad_v1_events.log'))  # Log to file
+                        logging.FileHandler(os.path.join(log_directory, 'scheduler_events.log'))  # Log to file
                     ])
+
 
 # Log the start of the script execution
 logging.info("Script execution started.")
 
+
 def backup_existing_assignments():
-    file_name = 'scratchpad_v1_assignments_restructured.xlsx'
+    file_name = 'assignments.xlsx'
     directory_path = 'history/'
 
     if not os.path.exists(directory_path):
@@ -29,31 +31,12 @@ def backup_existing_assignments():
 
     if os.path.exists(file_name):
         timestamp_str = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
-        new_file_name = f'{directory_path}scratchpad_v1_assignments_restructured_as_of_{timestamp_str}.xlsx'
+        new_file_name = f'{directory_path}assignments_as_of_{timestamp_str}.xlsx'
 
         os.rename(file_name, new_file_name)
         logging.info("Assignment file renamed to {}".format(new_file_name))
 
-        print(f"Existing {file_name} renamed to {new_file_name}")
-
-# def backup_existing_assignments():
-#     file_name = 'scratchpad_v1_assignments_restructured.xlsx'
-
-#     if os.path.exists(file_name):
-#         # Get the current date and time for a unique suffix
-#         timestamp_str = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
-
-#         # Create the new file name with the '_up_to_' prefix, date, and timestamp
-#         new_file_name = f'/history/scratchpad_v1_assignments_restructured_as_of_{timestamp_str}.xlsx'
-
-
-#         # Rename the existing file
-#         os.rename(file_name, new_file_name)
-
-#         # Log when the assignment file is renamed
-#         logging.info("Assignment file renamed to {}".format(new_file_name))
-
-#         print(f"Existing {file_name} renamed to {new_file_name}")
+        print(f"Existing {file_name} backed up to {new_file_name}")
 
 # Log when the existing assignment file is backed up
 backup_existing_assignments()
@@ -184,24 +167,13 @@ def write_to_excel(schedule):
     df = pd.DataFrame(flat_schedule)
 
     # Write to Excel file with the specified columns
-    df.to_excel('scratchpad_v1_assignments_restructured.xlsx', index=False)
-
-# def write_to_excel(schedule):
-#     """Write the schedule to an Excel file."""
-#     df = pd.DataFrame.from_dict(schedule, orient='index')
-#     df.to_excel('scratchpad_v1_assignments.xlsx', index=False)
+    df.to_excel('assignments.xlsx', index=False)
 
 def main():
     employee_data = read_employee_data("team_list.xlsx")
 
     if employee_data is not None:
         rotation_schedule = generate_rotation_schedule(employee_data)
-
-        # # For dev use, print the rotation schedule to console
-        # for week, data in rotation_schedule.items():
-        #     print(
-        #         f"Week {week}: {data['start_date']} - {data['end_date']}, Pair: {data['pair']}, Email Addresses: {data['email_addresses']}"
-        #     )
 
         # For production use, write the schedule to an Excel file
         write_to_excel(rotation_schedule)
@@ -210,7 +182,7 @@ def main():
         logging.error("Exiting program due to errors.")
 
     # Log the end of the script execution
-    logging.info("Script execution completed.")
+    logging.info("Script execution completed.\n")
 
 if __name__ == "__main__":
     main()
