@@ -36,6 +36,36 @@ def initialize_assignment_data_log():
         )
 
 
+def load_assignment_history():
+    """Load historical assignment data from assignment_data_log.csv."""
+    history = defaultdict(
+        lambda: {
+            "num_assignments": 0,
+            "last_assignment_date": "",
+            "workload_history": [],
+        }
+    )
+
+    try:
+        with open(assignment_data_log_path, "r") as log_file:
+            next(log_file)  # Skip header
+            for line in log_file:
+                parts = line.strip().split(",")
+                tech = parts[0]
+                num_assignments = int(parts[1])
+                last_assignment_date = parts[2]
+                workload_history = parts[3:]
+                history[tech] = {
+                    "num_assignments": num_assignments,
+                    "last_assignment_date": last_assignment_date,
+                    "workload_history": workload_history,
+                }
+    except FileNotFoundError:
+        logging.warning("No assignment history found. Continuing with empty history.")
+
+    return history
+
+
 def log_assignment_data(assignment_data):
     # Log assignment data to the assignment_data_log file
     with open(assignment_data_log_path, "a") as log_file:
@@ -151,7 +181,6 @@ def load_and_detect_changes(previous_data_path, current_data, log_changes=True):
 
     return previous_employee_data
 
-
 def generate_rotation_schedule(employee_data, weeks_in_year):
     schedule = {}
 
@@ -162,8 +191,10 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
     )
 
     # Load the previous employee data and detect changes
-    # Commented out for now
     previous_employee_data = load_and_detect_changes("team_list.xlsx", employee_data)
+
+    # Load assignment history
+    history = load_assignment_history()
 
     # Initialize assignment data dictionary
     assignment_data = defaultdict(
@@ -183,7 +214,7 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
             employee_data, weights, assigned_pairs_queue, max_assignments
         )
 
-        weights = update_weights(weights)
+        weights = update_weights(weights, history)  # Pass history to update_weights
 
         logging.debug("Weights after Week {} Assignment: {}".format(week, weights))
 
@@ -201,6 +232,57 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
     log_assignment_data(assignment_data)
 
     return schedule
+
+
+# def generate_rotation_schedule(employee_data, weeks_in_year):
+#     schedule = {}
+
+#     current_date = datetime.now()
+#     assigned_pairs_queue = initialize_assigned_pairs_queue(4)
+#     max_assignments = calculate_max_assignments(
+#         weeks_in_year, len(employee_data[employee_data["Available"] == "yes"])
+#     )
+
+#     # Load the previous employee data and detect changes
+#     # Commented out for now
+#     previous_employee_data = load_and_detect_changes("team_list.xlsx", employee_data)
+
+#     # Initialize assignment data dictionary
+#     assignment_data = defaultdict(
+#         lambda: {
+#             "num_assignments": 0,
+#             "last_assignment_date": "",
+#             "workload_history": [],
+#         }
+#     )
+
+#     weights = initialize_weights(employee_data)
+
+#     for week in range(1, 53):
+#         start_date, end_date = calculate_week_dates(current_date, week)
+
+#         paired_employees = generate_paired_employees(
+#             employee_data, weights, assigned_pairs_queue, max_assignments
+#         )
+
+#         weights = update_weights(weights)
+
+#         logging.debug("Weights after Week {} Assignment: {}".format(week, weights))
+
+#         # Update assignment data
+#         update_assignment_data(assignment_data, paired_employees, end_date, start_date)
+
+#         schedule[week] = {
+#             "start_date": start_date.strftime("%m-%d-%Y"),
+#             "end_date": end_date.strftime("%m-%d-%Y"),
+#             "pair": paired_employees,
+#             "email_addresses": get_email_addresses(employee_data, paired_employees),
+#         }
+
+#     # Log assignment data at the end of script execution
+#     log_assignment_data(assignment_data)
+
+#     return schedule
 
 
 def calculate_week_dates(current_date, week):
@@ -230,17 +312,25 @@ def generate_paired_employees(
     return paired_employees
 
 
-def adjust_weights(weights):
-    """Adjust weights based on certain criteria."""
-    return [w * random.uniform(0.8, 1.2) for w in weights]
+def adjust_weights(weights, history):
+    """Adjust weights based on certain criteria and historical data."""
+    adjusted_weights = []
 
-def update_weights(weights):
+    for tech, weight in zip(employee_data["Name"], weights):
+        # Consider the historical number of assignments for each tech
+        num_assignments = history[tech]["num_assignments"]
+
+        # Modify the weight based on historical data (customize this part)
+        adjusted_weight = weight * (1.0 + 0.1 * num_assignments)  # Example adjustment
+
+        adjusted_weights.append(adjusted_weight)
+
+    return adjusted_weights
+
+
+def update_weights(weights, history=None):
     """Update weights based on certain criteria."""
     return adjust_weights(weights)
-
-# def update_weights(weights):
-#     """Update weights based on a random factor."""
-#     return [w * random.uniform(0.8, 1.2) for w in weights]
 
 
 def update_assignment_data(assignment_data, paired_employees, end_date, start_date):
@@ -283,6 +373,7 @@ def write_to_excel(schedule):
 
 
 def main():
+    global employee_data
     employee_data = read_employee_data("team_list.xlsx")
 
     if employee_data is not None:
