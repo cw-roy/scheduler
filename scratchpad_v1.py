@@ -209,60 +209,6 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
     return schedule
 
 
-# def generate_rotation_schedule(employee_data, weeks_in_year):
-#     schedule = {}
-#     weights = [1.0] * len(employee_data[employee_data["Available"] == "yes"])
-
-#     current_date = datetime.now()
-#     assigned_pairs_queue = deque(maxlen=4)
-#     max_assignments = calculate_max_assignments(
-#         weeks_in_year, len(employee_data[employee_data["Available"] == "yes"])
-#     )
-
-#     # Load the previous employee data
-#     previous_employee_data = read_employee_data("team_list.xlsx")
-
-#     if previous_employee_data is not None:
-#         # Detect and log changes in employee data
-#         changes = detect_changes(previous_employee_data, employee_data)
-#         if changes:
-#             logging.info("Changes detected in team_list.xlsx:")
-#             for change in changes:
-#                 logging.info(change)
-
-#     for week in range(1, 53):
-#         start_date = current_date + timedelta(
-#             days=((week - 1) * 7) + (0 - current_date.weekday()) % 7
-#         )
-#         end_date = start_date + timedelta(days=4)
-
-#         paired_employees = None
-#         while True:
-#             normalized_weights = normalize_weights(weights, max_assignments)
-#             paired_employees = random.choices(
-#                 employee_data[employee_data["Available"] == "yes"]["Name"].tolist(),
-#                 weights=normalized_weights,
-#                 k=2,
-#             )
-#             if all(pair not in assigned_pairs_queue for pair in paired_employees):
-#                 break
-
-#         assigned_pairs_queue.extend(paired_employees)
-
-#         weights = [w * random.uniform(0.8, 1.2) for w in weights]
-
-#         logging.debug("Weights after Week {} Assignment: {}".format(week, weights))
-
-#         schedule[week] = {
-#             "start_date": start_date.strftime("%m-%d-%Y"),
-#             "end_date": end_date.strftime("%m-%d-%Y"),
-#             "pair": paired_employees,
-#             "email_addresses": get_email_addresses(employee_data, paired_employees),
-#         }
-
-#     return schedule
-
-
 def write_to_excel(schedule):
     """Write the schedule to an Excel file with the specified format."""
     flat_schedule = []
