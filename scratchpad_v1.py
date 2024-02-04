@@ -3,7 +3,7 @@ import pandas as pd
 import random
 from datetime import datetime, timedelta
 import logging
-from collections import deque
+from collections import deque, defaultdict
 
 # Configure logging
 log_directory = os.path.join(os.path.dirname(__file__), "logging")
@@ -23,6 +23,26 @@ logging.basicConfig(
 
 # Log the start of the script execution
 logging.info("Script execution started.")
+
+# Define the assignment data log file
+assignment_data_log_path = os.path.join(log_directory, "assignment_data_log.csv")
+
+
+def initialize_assignment_data_log():
+    # Initialize the assignment data log file
+    with open(assignment_data_log_path, "w") as log_file:
+        log_file.write(
+            "Tech,Number of Assignments,Average Frequency,Last Assignment Date,Workload History\n"
+        )
+
+
+def log_assignment_data(assignment_data):
+    # Log assignment data to the assignment_data_log file
+    with open(assignment_data_log_path, "a") as log_file:
+        for tech, data in assignment_data.items():
+            log_file.write(
+                f"{tech},{data['num_assignments']},{data['average_frequency']},{data['last_assignment_date']},{','.join(data['workload_history'])}\n"
+            )
 
 
 def backup_existing_assignments():
@@ -128,6 +148,16 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
             for change in changes:
                 logging.info(change)
 
+    # Initialize assignment data dictionary
+    assignment_data = defaultdict(
+        lambda: {
+            "num_assignments": 0,
+            "average_frequency": 0,
+            "last_assignment_date": "",
+            "workload_history": [],
+        }
+    )
+
     for week in range(1, 53):
         start_date = current_date + timedelta(
             days=((week - 1) * 7) + (0 - current_date.weekday()) % 7
@@ -151,6 +181,16 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
 
         logging.debug("Weights after Week {} Assignment: {}".format(week, weights))
 
+        # Update assignment data
+        for tech in paired_employees:
+            assignment_data[tech]["num_assignments"] += 1
+            assignment_data[tech]["last_assignment_date"] = end_date.strftime(
+                "%m-%d-%Y"
+            )
+            assignment_data[tech]["workload_history"].append(
+                start_date.strftime("%m-%d-%Y")
+            )
+
         schedule[week] = {
             "start_date": start_date.strftime("%m-%d-%Y"),
             "end_date": end_date.strftime("%m-%d-%Y"),
@@ -158,7 +198,69 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
             "email_addresses": get_email_addresses(employee_data, paired_employees),
         }
 
+    # Calculate and update average frequency in assignment data
+    for tech, data in assignment_data.items():
+        if data["num_assignments"] > 0:
+            data["average_frequency"] = weeks_in_year / data["num_assignments"]
+
+    # Log assignment data at the end of script execution
+    log_assignment_data(assignment_data)
+
     return schedule
+
+
+# def generate_rotation_schedule(employee_data, weeks_in_year):
+#     schedule = {}
+#     weights = [1.0] * len(employee_data[employee_data["Available"] == "yes"])
+
+#     current_date = datetime.now()
+#     assigned_pairs_queue = deque(maxlen=4)
+#     max_assignments = calculate_max_assignments(
+#         weeks_in_year, len(employee_data[employee_data["Available"] == "yes"])
+#     )
+
+#     # Load the previous employee data
+#     previous_employee_data = read_employee_data("team_list.xlsx")
+
+#     if previous_employee_data is not None:
+#         # Detect and log changes in employee data
+#         changes = detect_changes(previous_employee_data, employee_data)
+#         if changes:
+#             logging.info("Changes detected in team_list.xlsx:")
+#             for change in changes:
+#                 logging.info(change)
+
+#     for week in range(1, 53):
+#         start_date = current_date + timedelta(
+#             days=((week - 1) * 7) + (0 - current_date.weekday()) % 7
+#         )
+#         end_date = start_date + timedelta(days=4)
+
+#         paired_employees = None
+#         while True:
+#             normalized_weights = normalize_weights(weights, max_assignments)
+#             paired_employees = random.choices(
+#                 employee_data[employee_data["Available"] == "yes"]["Name"].tolist(),
+#                 weights=normalized_weights,
+#                 k=2,
+#             )
+#             if all(pair not in assigned_pairs_queue for pair in paired_employees):
+#                 break
+
+#         assigned_pairs_queue.extend(paired_employees)
+
+#         weights = [w * random.uniform(0.8, 1.2) for w in weights]
+
+#         logging.debug("Weights after Week {} Assignment: {}".format(week, weights))
+
+#         schedule[week] = {
+#             "start_date": start_date.strftime("%m-%d-%Y"),
+#             "end_date": end_date.strftime("%m-%d-%Y"),
+#             "pair": paired_employees,
+#             "email_addresses": get_email_addresses(employee_data, paired_employees),
+#         }
+
+#     return schedule
 
 
 def write_to_excel(schedule):
@@ -195,6 +297,9 @@ def main():
 
     if employee_data is not None:
         backup_existing_assignments()
+
+        # Initialize the assignment data log file
+        initialize_assignment_data_log()
 
         rotation_schedule = generate_rotation_schedule(employee_data, weeks_in_year=52)
 
