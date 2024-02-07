@@ -20,7 +20,6 @@ logging.basicConfig(
     ],
 )
 
-
 # Log the start of the script execution
 logging.info("Script execution started.")
 
@@ -181,6 +180,94 @@ def load_and_detect_changes(previous_data_path, current_data, log_changes=True):
 
     return previous_employee_data
 
+
+def calculate_week_dates(current_date, week):
+    """Calculate the start and end dates of a week."""
+    start_date = current_date + timedelta(
+        days=((week - 1) * 7) + (0 - current_date.weekday()) % 7
+    )
+    end_date = start_date + timedelta(days=4)
+    return start_date, end_date
+
+
+def generate_paired_employees(
+    employee_data, weights, assigned_pairs_queue, max_assignments
+):
+    """Generate a pair of employees for assignment."""
+    paired_employees = None
+    while True:
+        normalized_weights = normalize_weights(weights, max_assignments)
+        paired_employees = random.choices(
+            employee_data[employee_data["Available"] == "yes"]["Name"].tolist(),
+            weights=normalized_weights,
+            k=2,
+        )
+        if all(pair not in assigned_pairs_queue for pair in paired_employees):
+            break
+    assigned_pairs_queue.extend(paired_employees)
+    return paired_employees
+
+
+def update_weights(weights, history=None):
+    """Update weights based on certain criteria."""
+    return adjust_weights(weights, history)
+
+
+def adjust_weights(weights, history):
+    """Adjust weights based on certain criteria and historical data."""
+    adjusted_weights = []
+
+    for tech, weight in zip(employee_data["Name"], weights):
+        # Consider the historical number of assignments for each tech
+        num_assignments = history[tech]["num_assignments"]
+
+        # Modify the weight based on historical data (customize this part)
+        adjusted_weight = weight * (1.0 + 0.1 * num_assignments)  # Example adjustment
+
+        adjusted_weights.append(adjusted_weight)
+
+    return adjusted_weights
+
+
+def update_assignment_data(assignment_data, paired_employees, end_date, start_date):
+    """Update assignment data for each employee."""
+    for tech in paired_employees:
+        assignment_data[tech]["num_assignments"] += 1
+        assignment_data[tech]["last_assignment_date"] = end_date.strftime("%m-%d-%Y")
+        assignment_data[tech]["workload_history"].append(
+            start_date.strftime("%m-%d-%Y")
+        )
+
+
+def write_to_excel(schedule):
+    """Write the schedule to an Excel file with the specified format."""
+    flat_schedule = []
+
+    for week, data in schedule.items():
+        start_date = datetime.strptime(data["start_date"], "%m-%d-%Y")
+        end_date = datetime.strptime(data["end_date"], "%m-%d-%Y")
+
+        flat_schedule.append(
+            {
+                "start_date": start_date.strftime("%m-%d-%Y"),
+                "end_date": end_date.strftime("%m-%d-%Y"),
+                "Agent 1": data["pair"][0],
+                "Email1": data["email_addresses"][0],
+                "Agent 2": data["pair"][1],
+                "Email2": data["email_addresses"][1],
+            }
+        )
+
+    df = pd.DataFrame(flat_schedule)
+
+    # Specify the path within the "working" directory
+    working_directory = "working"
+    output_file_path = os.path.join(working_directory, "assignments.xlsx")
+
+    # Write to Excel file with the specified columns
+    df.to_excel(output_file_path, index=False)
+
+
 def generate_rotation_schedule(employee_data, weeks_in_year):
     schedule = {}
 
@@ -232,94 +319,6 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
     log_assignment_data(assignment_data)
 
     return schedule
-
-
-
-def calculate_week_dates(current_date, week):
-    """Calculate the start and end dates of a week."""
-    start_date = current_date + timedelta(
-        days=((week - 1) * 7) + (0 - current_date.weekday()) % 7
-    )
-    end_date = start_date + timedelta(days=4)
-    return start_date, end_date
-
-
-def generate_paired_employees(
-    employee_data, weights, assigned_pairs_queue, max_assignments
-):
-    """Generate a pair of employees for assignment."""
-    paired_employees = None
-    while True:
-        normalized_weights = normalize_weights(weights, max_assignments)
-        paired_employees = random.choices(
-            employee_data[employee_data["Available"] == "yes"]["Name"].tolist(),
-            weights=normalized_weights,
-            k=2,
-        )
-        if all(pair not in assigned_pairs_queue for pair in paired_employees):
-            break
-    assigned_pairs_queue.extend(paired_employees)
-    return paired_employees
-
-
-def update_weights(weights, history=None):
-    """Update weights based on certain criteria."""
-    return adjust_weights(weights, history)
-
-def adjust_weights(weights, history):
-    """Adjust weights based on certain criteria and historical data."""
-    adjusted_weights = []
-
-    for tech, weight in zip(employee_data["Name"], weights):
-        # Consider the historical number of assignments for each tech
-        num_assignments = history[tech]["num_assignments"]
-
-        # Modify the weight based on historical data (customize this part)
-        adjusted_weight = weight * (1.0 + 0.1 * num_assignments)  # Example adjustment
-
-        adjusted_weights.append(adjusted_weight)
-
-    return adjusted_weights
-
-
-
-def update_assignment_data(assignment_data, paired_employees, end_date, start_date):
-    """Update assignment data for each employee."""
-    for tech in paired_employees:
-        assignment_data[tech]["num_assignments"] += 1
-        assignment_data[tech]["last_assignment_date"] = end_date.strftime("%m-%d-%Y")
-        assignment_data[tech]["workload_history"].append(
-            start_date.strftime("%m-%d-%Y")
-        )
-
-
-def write_to_excel(schedule):
-    """Write the schedule to an Excel file with the specified format."""
-    flat_schedule = []
-
-    for week, data in schedule.items():
-        start_date = datetime.strptime(data["start_date"], "%m-%d-%Y")
-        end_date = datetime.strptime(data["end_date"], "%m-%d-%Y")
-
-        flat_schedule.append(
-            {
-                "start_date": start_date.strftime("%m-%d-%Y"),
-                "end_date": end_date.strftime("%m-%d-%Y"),
-                "Agent 1": data["pair"][0],
-                "Email1": data["email_addresses"][0],
-                "Agent 2": data["pair"][1],
-                "Email2": data["email_addresses"][1],
-            }
-        )
-
-    df = pd.DataFrame(flat_schedule)
-
-    # Specify the path within the "working" directory
-    working_directory = "working"
-    output_file_path = os.path.join(working_directory, "assignments.xlsx")
-
-    # Write to Excel file with the specified columns
-    df.to_excel(output_file_path, index=False)
 
 
 def main():
