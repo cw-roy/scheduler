@@ -234,56 +234,6 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
     return schedule
 
 
-# def generate_rotation_schedule(employee_data, weeks_in_year):
-#     schedule = {}
-
-#     current_date = datetime.now()
-#     assigned_pairs_queue = initialize_assigned_pairs_queue(4)
-#     max_assignments = calculate_max_assignments(
-#         weeks_in_year, len(employee_data[employee_data["Available"] == "yes"])
-#     )
-
-#     # Load the previous employee data and detect changes
-#     # Commented out for now
-#     previous_employee_data = load_and_detect_changes("team_list.xlsx", employee_data)
-
-#     # Initialize assignment data dictionary
-#     assignment_data = defaultdict(
-#         lambda: {
-#             "num_assignments": 0,
-#             "last_assignment_date": "",
-#             "workload_history": [],
-#         }
-#     )
-
-#     weights = initialize_weights(employee_data)
-
-#     for week in range(1, 53):
-#         start_date, end_date = calculate_week_dates(current_date, week)
-
-#         paired_employees = generate_paired_employees(
-#             employee_data, weights, assigned_pairs_queue, max_assignments
-#         )
-
-#         weights = update_weights(weights)
-
-#         logging.debug("Weights after Week {} Assignment: {}".format(week, weights))
-
-#         # Update assignment data
-#         update_assignment_data(assignment_data, paired_employees, end_date, start_date)
-
-#         schedule[week] = {
-#             "start_date": start_date.strftime("%m-%d-%Y"),
-#             "end_date": end_date.strftime("%m-%d-%Y"),
-#             "pair": paired_employees,
-#             "email_addresses": get_email_addresses(employee_data, paired_employees),
-#         }
-
-#     # Log assignment data at the end of script execution
-#     log_assignment_data(assignment_data)
-
-#     return schedule
-
 
 def calculate_week_dates(current_date, week):
     """Calculate the start and end dates of a week."""
@@ -312,6 +262,10 @@ def generate_paired_employees(
     return paired_employees
 
 
+def update_weights(weights, history=None):
+    """Update weights based on certain criteria."""
+    return adjust_weights(weights, history)
+
 def adjust_weights(weights, history):
     """Adjust weights based on certain criteria and historical data."""
     adjusted_weights = []
@@ -327,10 +281,6 @@ def adjust_weights(weights, history):
 
     return adjusted_weights
 
-
-def update_weights(weights, history=None):
-    """Update weights based on certain criteria."""
-    return adjust_weights(weights)
 
 
 def update_assignment_data(assignment_data, paired_employees, end_date, start_date):
