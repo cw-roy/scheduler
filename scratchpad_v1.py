@@ -26,6 +26,7 @@ logging.basicConfig(
 team_list_path = os.path.join("working", "team_list.xlsx")
 assignments_path = os.path.join("working", "assignments.xlsx")
 
+WEEKS_IN_YEAR = 52
 
 def read_employee_data(file_path):
     """Read employee data from the Excel spreadsheet."""
@@ -67,7 +68,7 @@ assignment_data_log_path = os.path.join(
 if not os.path.exists(assignment_data_log_path):
     with open(assignment_data_log_path, "w") as log_file:
         log_file.write(
-            "Run Start, Tech, Number of Assignments, Last Assignment Date, Workload History\n"
+            "Tech, Number of Assignments, Last Assignment Date, Workload History\n"
         )
 
 
@@ -93,7 +94,7 @@ def initialize_assignment_data_log():
     if not os.path.exists(assignment_data_log_path):
         with open(assignment_data_log_path, "w") as log_file:
             log_file.write(
-                "Run Start, Tech, Number of Assignments, Last Assignment Date, Workload History\n"
+                "Tech, Number of Assignments, Last Assignment Date, Workload History\n"
             )
 
 
@@ -389,34 +390,29 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
     return schedule
 
 
+# ... (unchanged code above)
+
 def main():
-    global employee_data, team_list_path, assignments_path
+    team_list_path = os.path.join("working", "team_list.xlsx")
+    # assignments_path = os.path.join("working", "assignments.xlsx")
 
     employee_data = read_employee_data(team_list_path)
 
     if employee_data is not None:
-        # Log backup activity
         log_activity("Backing up existing assignments.")
         backup_existing_assignments()
 
-        # Initialize the assignment data log file
         initialize_assignment_data_log()
 
-        # Generate rotation schedule
-        rotation_schedule = generate_rotation_schedule(employee_data, weeks_in_year=52)
+        rotation_schedule = generate_rotation_schedule(employee_data, WEEKS_IN_YEAR)
 
-        # Log assignment data at the end of script execution
-        log_assignment_data(rotation_schedule)  # Pass the assignment data
-
-        # Write the schedule to an Excel file
+        log_assignment_data(rotation_schedule)
         write_to_excel(rotation_schedule)
 
     else:
         logging.error("Exiting program due to errors.")
 
-    # Log the end of the script execution
     log_activity("Script execution completed.\n")
-
 
 if __name__ == "__main__":
     main()
