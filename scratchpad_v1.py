@@ -4,6 +4,7 @@ import random
 from datetime import datetime, timedelta
 import logging
 from collections import deque, defaultdict
+import sys
 
 # Configure logging
 log_directory = os.path.join(os.path.dirname(__file__), "logging")
@@ -12,6 +13,7 @@ os.makedirs(log_directory, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%m-%d-%Y %H:%M:%s",
     handlers=[
         # logging.StreamHandler(),  # Comment out to stop logging to console
         logging.FileHandler(
@@ -20,19 +22,79 @@ logging.basicConfig(
     ],
 )
 
+# Set the paths to the input and output files
+team_list_path = os.path.join("working", "team_list.xlsx")
+assignments_path = os.path.join("working", "assignments.xlsx")
+
+
+def read_employee_data(file_path):
+    """Read employee data from the Excel spreadsheet."""
+    try:
+        # df = pd.read_excel(file_path)
+        df = pd.read_excel(file_path)
+
+        # Clean column names by removing leading and trailing spaces
+        df.columns = df.columns.str.strip()
+
+        # Validate columns
+        expected_columns = ["Name", "Email", "Available"]
+        actual_columns_stripped = [col.strip() for col in df.columns]
+
+        if set(actual_columns_stripped) != set(expected_columns):
+            raise ValueError(
+                f"Expected Columns: {expected_columns}\nActual Columns: {actual_columns_stripped}"
+            )
+
+        return df
+
+    except Exception as e:
+        logging.error(f"Error reading employee data: {e}")
+        return None
+
+
+employee_data = read_employee_data(team_list_path)
+
 # Log the start of the script execution
 logging.info("Script execution started.")
 
 # Define the assignment data log file
-assignment_data_log_path = os.path.join(log_directory, "assignment_data_log.csv")
+assignment_data_log_filename = "assignment_data_log.csv"
+assignment_data_log_path = os.path.join(
+    os.path.dirname(__file__), "logging", assignment_data_log_filename
+)
+
+# Check if the assignment_data_log.csv file exists, create it if not
+if not os.path.exists(assignment_data_log_path):
+    with open(assignment_data_log_path, "w") as log_file:
+        log_file.write(
+            "Run Start, Tech, Number of Assignments, Last Assignment Date, Workload History\n"
+        )
+
+
+# Load previous employee data and detect changes
+previous_employee_data = read_employee_data(team_list_path)
+
+
+def check_and_exit_if_no_changes(current_employee_data, previous_employee_data):
+    """Check for changes in employee availability and exit if no changes."""
+    if current_employee_data is None or previous_employee_data is None:
+        log_activity("Error reading employee data. Exiting script.")
+        logging.info("Script execution completed with errors.\n")
+        sys.exit(1)
+
+    if current_employee_data.equals(previous_employee_data):
+        log_activity("No changes in availability. Exiting script.")
+        logging.info("Script execution completed.\n")
+        sys.exit(0)
 
 
 def initialize_assignment_data_log():
-    # Initialize the assignment data log file
-    with open(assignment_data_log_path, "w") as log_file:
-        log_file.write(
-            "Tech,Number of Assignments,Last Assignment Date,Workload History\n"
-        )
+    # Check if the assignment_data_log.csv file exists
+    if not os.path.exists(assignment_data_log_path):
+        with open(assignment_data_log_path, "w") as log_file:
+            log_file.write(
+                "Run Start, Tech, Number of Assignments, Last Assignment Date, Workload History\n"
+            )
 
 
 def load_assignment_history():
@@ -68,55 +130,52 @@ def load_assignment_history():
 def log_assignment_data(assignment_data):
     # Log assignment data to the assignment_data_log file
     with open(assignment_data_log_path, "a") as log_file:
+        # Write assignment data for each tech
         for tech, data in assignment_data.items():
-            log_file.write(
-                f"{tech},{data['num_assignments']},{data['last_assignment_date']},{','.join(data['workload_history'])}\n"
-            )
+            # Check if 'num_assignments' key exists in the data dictionary
+            if "num_assignments" in data:
+                log_file.write(
+                    f"{tech},{data['num_assignments']},{data['last_assignment_date']},{','.join(data['workload_history'])}\n"
+                )
+
+
+def log_activity(activity_description):
+    """Log activities to scheduler_events.log."""
+    formatted_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    logging.info(f"{formatted_timestamp} - {activity_description}")
 
 
 def backup_existing_assignments():
-    file_name = "assignments.xlsx"
+    file_name = "assignment_data_log.csv"
     history_directory = "history"
 
-    working_directory = "working"
-    file_path = os.path.join(working_directory, file_name)
+    file_path = os.path.join(log_directory, file_name)
 
     if os.path.exists(file_path):
         timestamp_str = datetime.now().strftime("%m-%d-%Y_%H-%M-%S")
         new_file_name = os.path.join(
-            history_directory, f"assignments_as_of_{timestamp_str}.xlsx"
+            history_directory, f"{file_name}_as_of_{timestamp_str}.csv"
         )
 
         os.rename(file_path, new_file_name)
-        logging.info("Assignment file backed up to {}".format(new_file_name))
-        # print(f"Existing {file_name} backed up to {new_file_name}")
+        logging.info("Assignment data log backed up to {}".format(new_file_name))
+
+        # Keep only the last 3 backups, delete older ones
+        delete_old_backups(history_directory, file_name, keep_latest=3)
     else:
-        logging.info("No existing assignments to back up.")
+        logging.info("No existing assignment data log to back up.")
 
 
-def read_employee_data(file_path):
-    """Read employee data from the Excel spreadsheet."""
-    try:
-        # df = pd.read_excel(file_path)
-        df = pd.read_excel(os.path.join("working", file_path))
+def delete_old_backups(directory, base_name, keep_latest):
+    files = [f for f in os.listdir(directory) if f.startswith(f"{base_name}_as_of_")]
+    files.sort(key=lambda x: os.path.getctime(os.path.join(directory, x)), reverse=True)
 
-        # Clean column names by removing leading and trailing spaces
-        df.columns = df.columns.str.strip()
-
-        # Validate columns
-        expected_columns = ["Name", "Email", "Available"]
-        actual_columns_stripped = [col.strip() for col in df.columns]
-
-        if set(actual_columns_stripped) != set(expected_columns):
-            raise ValueError(
-                f"Expected Columns: {expected_columns}\nActual Columns: {actual_columns_stripped}"
-            )
-
-        return df
-
-    except Exception as e:
-        logging.error(f"Error reading employee data: {e}")
-        return None
+    # Delete older backups, keep only the last 'keep_latest'
+    for old_file in files[keep_latest:]:
+        os.remove(os.path.join(directory, old_file))
+        logging.info(
+            f"Retain maximum of 3 saved logs. Old assignment data log backup deleted: {old_file}"
+        )
 
 
 def get_email_addresses(employee_data, pair):
@@ -267,6 +326,18 @@ def write_to_excel(schedule):
     # Write to Excel file with the specified columns
     df.to_excel(output_file_path, index=False)
 
+    # Logging to confirm the file creation
+    if not os.path.exists(output_file_path):
+        logging.warning(
+            f"Assignments file not found at {output_file_path}. Creating a new file."
+        )
+        with open(output_file_path, "w") as new_file:
+            new_file.write("Start Date, End Date, Agent 1, Email1, Agent 2, Email2\n")
+
+        logging.info(f"Assignments file created at {output_file_path}")
+    else:
+        logging.info(f"Assignments written to {output_file_path}")
+
 
 def generate_rotation_schedule(employee_data, weeks_in_year):
     schedule = {}
@@ -276,9 +347,6 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
     max_assignments = calculate_max_assignments(
         weeks_in_year, len(employee_data[employee_data["Available"] == "yes"])
     )
-
-    # Load the previous employee data and detect changes
-    previous_employee_data = load_and_detect_changes("team_list.xlsx", employee_data)
 
     # Load assignment history
     history = load_assignment_history()
@@ -322,25 +390,32 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
 
 
 def main():
-    global employee_data
-    employee_data = read_employee_data("team_list.xlsx")
+    global employee_data, team_list_path, assignments_path
+
+    employee_data = read_employee_data(team_list_path)
 
     if employee_data is not None:
+        # Log backup activity
+        log_activity("Backing up existing assignments.")
         backup_existing_assignments()
 
         # Initialize the assignment data log file
         initialize_assignment_data_log()
 
+        # Generate rotation schedule
         rotation_schedule = generate_rotation_schedule(employee_data, weeks_in_year=52)
 
-        # For production use, write the schedule to an Excel file
+        # Log assignment data at the end of script execution
+        log_assignment_data(rotation_schedule)  # Pass the assignment data
+
+        # Write the schedule to an Excel file
         write_to_excel(rotation_schedule)
 
     else:
         logging.error("Exiting program due to errors.")
 
     # Log the end of the script execution
-    logging.info("Script execution completed.\n")
+    log_activity("Script execution completed.\n")
 
 
 if __name__ == "__main__":

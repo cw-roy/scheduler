@@ -190,9 +190,6 @@ def generate_rotation_schedule(employee_data, weeks_in_year):
         weeks_in_year, len(employee_data[employee_data["Available"] == "yes"])
     )
 
-    # Load the previous employee data and detect changes
-    previous_employee_data = load_and_detect_changes("team_list.xlsx", employee_data)
-
     # Load assignment history
     history = load_assignment_history()
 
